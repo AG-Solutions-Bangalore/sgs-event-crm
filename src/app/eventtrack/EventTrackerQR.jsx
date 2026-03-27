@@ -2,7 +2,7 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 import { App, Card, Spin, Modal, InputNumber, Button } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useRef, useState } from "react";
-import { FETCH_USER_BY_MID, EVENT_TRACK } from "../../api";
+import { FETCH_USER_BY_MID } from "../../api";
 import { useApiMutation } from "../../hooks/useApiMutation";
 import AvatarCell from "../../components/common/AvatarCell";
 
@@ -13,6 +13,8 @@ const EventMidScanner = ({
   NoofMember,
   setMultiMemberModal,
   multiMemberModal,
+  onCheckInSuccess,
+  checkedInMembers = [],
 }) => {
   const { message } = App.useApp();
   const [scanResult, setScanResult] = useState("");
@@ -21,7 +23,6 @@ const EventMidScanner = ({
   const [scannedUser, setScannedUser] = useState(null);
   const [userDetailsModal, setUserDetailsModal] = useState(false);
   const timeoutRef = useRef(null);
-  const { trigger: submitTrigger, loading: submitLoading } = useApiMutation();
   const { trigger: fetchUserTrigger, loading: fetchLoading } = useApiMutation();
 
   useEffect(() => {
@@ -31,31 +32,17 @@ const EventMidScanner = ({
   }, []);
 
   const submitEvent = async (midValue, count) => {
-    const payload = {
-      event_no_of_people: count,
-      event_id: eventId || 1,
-      event_member_mid: midValue,
-      event_entry_date: dayjs().format("YYYY-MM-DD"),
-    };
-
     try {
-      const res = await submitTrigger({
-        url: EVENT_TRACK,
-        method: "post",
-        data: payload,
-      });
-
-      if (res.code === 201) {
-        message.success(res.message || "Event saved!");
-        // setOpenQrDialog(false);
-      } else {
-        message.error(res.message || "Failed to save event.");
+      if (onCheckInSuccess && scannedUser) {
+        onCheckInSuccess({
+          ...scannedUser,
+          checkInTime: dayjs().format("HH:mm:ss"),
+          peopleCount: count,
+        });
+        message.success("Check-in successful!");
       }
     } catch (error) {
-      message.error(
-        error?.response?.data?.message || "Error submitting event."
-      );
-      console.error(error);
+      message.error("Error updating check-in list.");
     }
   };
 
@@ -69,7 +56,10 @@ const EventMidScanner = ({
       if (scannedValue.includes("mid=")) {
         const midMatch = scannedValue.match(/mid=([^&\s]+)/);
         midValue = midMatch ? midMatch[1] : null;
-      } else if (/^[a-zA-Z0-9]+$/.test(scannedValue) && scannedValue.length <= 15) {
+      } else if (
+        /^[a-zA-Z0-9]+$/.test(scannedValue) &&
+        scannedValue.length <= 15
+      ) {
         // If it's a simple alphanumeric string, assume it's the MID
         midValue = scannedValue;
       } else {
@@ -88,6 +78,15 @@ const EventMidScanner = ({
         return;
       }
 
+      // Early Duplicate Check
+      const isDuplicate = checkedInMembers.some((m) => m.user_mid === midValue);
+      if (isDuplicate) {
+        message.error(
+          `Duplicate Scan: Member with MID ${midValue} is already checked in!`,
+        );
+        return;
+      }
+
       try {
         const userRes = await fetchUserTrigger({
           url: FETCH_USER_BY_MID(midValue),
@@ -97,12 +96,12 @@ const EventMidScanner = ({
         if (userRes.data) {
           const userData = userRes.data;
           const imageUrlConfigs = userRes.image_url || [];
-          
+
           const userImageConfig = imageUrlConfigs.find(
-            (config) => config.image_for === "User"
+            (config) => config.image_for === "User",
           );
           const noImageConfig = imageUrlConfigs.find(
-            (config) => config.image_for === "No Image"
+            (config) => config.image_for === "No Image",
           );
 
           const baseImageUrl = userImageConfig ? userImageConfig.image_url : "";
@@ -135,37 +134,44 @@ const EventMidScanner = ({
     message.error("Error scanning QR code");
   };
 
+  const isSecure =
+    window.isSecureContext ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
   return (
-    <>
-      {submitLoading ? (
-        <Card
-          style={{
-            maxWidth: 400,
-            minHeight: 260,
-            margin: "20px auto",
-            textAlign: "center",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+    <div className="w-full h-full flex flex-col items-center justify-center">
+      {!isSecure && (
+        <div
+          className="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300"
+          role="alert"
         >
-          <Spin />
-        </Card>
-      ) : (
-        <>
-          {scanning && (
+          <span className="font-medium">Warning!</span> Camera access requires
+          HTTPS. Please access the site via a secure connection.
+        </div>
+      )}
+
+      <div className="relative w-full max-w-[300px] h-full overflow-hidden rounded-xl border-2 border-primary/20 bg-black/5 shadow-inner">
+        {scanning ? (
+          <div className="relative aspect-square w-full">
             <Scanner
               onScan={handleScan}
               onError={handleError}
               className="scanner"
               styles={{
-                container: { width: "100%", maxWidth: "400px", margin: "auto" },
-                video: { width: "100%", height: "auto" },
+                container: { width: "100%", height: "100%" },
+                video: { width: "100%", height: "100%", objectFit: "cover" },
               }}
             />
-          )}
-        </>
-      )}
+            {/* Optional: Add a subtle scanning animation overlay here if desired */}
+            <div className="absolute inset-x-0 top-1/2 h-0.5 bg-primary/50 animate-pulse hidden group-hover:block"></div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center p-12 text-muted-foreground italic">
+            Scanner is paused.
+          </div>
+        )}
+      </div>
 
       {/* User Details & Confirmation Modal */}
       <Modal
@@ -179,7 +185,6 @@ const EventMidScanner = ({
           <Button
             key="submit"
             type="primary"
-            loading={submitLoading}
             onClick={() => {
               if (NoofMember === "One Card Multi Member") {
                 setMultiMemberModal(true);
@@ -190,21 +195,23 @@ const EventMidScanner = ({
               }
             }}
           >
-            Confirm Check-in
+            Check-in
           </Button>,
         ]}
       >
         {scannedUser && (
           <div className="flex flex-col items-center gap-4 py-4">
-            <AvatarCell
-              src={scannedUser.full_image}
-              size={100}
-            />
+            <AvatarCell src={scannedUser.full_image} size={100} />
             <div className="text-center">
               <h3 className="text-xl font-bold">{scannedUser.name}</h3>
               <p className="text-gray-500">MID: {scannedUser.user_mid}</p>
+              {(scannedUser.user_mobile ||
+                scannedUser.mobile_no ||
+                scannedUser.mobile) && (
+                <p className="text-gray-500">Phone: {scannedUser.mobile}</p>
+              )}
               {scannedUser.user_member_type && (
-                <p className="text-sm font-medium text-primary">
+                <p className="text-sm font-medium text-primary mt-1">
                   {scannedUser.user_member_type}
                 </p>
               )}
@@ -238,7 +245,7 @@ const EventMidScanner = ({
           Submit
         </Button>
       </Modal>
-    </>
+    </div>
   );
 };
 

@@ -8,22 +8,10 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { Breadcrumbs } from "@/components/new/breadcrumbs";
-import { Modal } from "antd";
-import { useState, useEffect } from "react";
-import EventMidScanner from "../eventtrack/EventTrackerQR";
+import { useState } from "react";
 
 export default function Page({ children }) {
   const navigate = useNavigate();
-  const [showWelcomeScanner, setShowWelcomeScanner] = useState(false);
-  const [multiMemberModal, setMultiMemberModal] = useState(false);
-
-  useEffect(() => {
-    const isNewLogin = sessionStorage.getItem("is_new_login");
-    if (isNewLogin === "true") {
-      setShowWelcomeScanner(true);
-      sessionStorage.removeItem("is_new_login");
-    }
-  }, []);
 
   const handleBackClick = (e) => {
     e.preventDefault();
@@ -60,23 +48,6 @@ export default function Page({ children }) {
           </div>
         </footer>
       </SidebarInset>
-
-      <Modal
-        title="Immediate Scan (After Login)"
-        open={showWelcomeScanner}
-        onCancel={() => setShowWelcomeScanner(false)}
-        footer={null}
-        width={500}
-        mask={{ closable: false }}
-      >
-        <EventMidScanner
-          scanning={showWelcomeScanner}
-          setOpenQrDialog={setShowWelcomeScanner}
-          setMultiMemberModal={setMultiMemberModal}
-          multiMemberModal={multiMemberModal}
-          NoofMember="One Card One Member" // Default for quick scan
-        />
-      </Modal>
     </SidebarProvider>
   );
 }

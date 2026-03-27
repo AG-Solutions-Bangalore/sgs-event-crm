@@ -1,10 +1,7 @@
 import { LOGIN } from "@/constants/apiConstants";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { setCredentials } from "@/store/auth/authSlice";
-import {
-  setCompanyDetails,
-  setCompanyImage,
-} from "@/store/auth/companySlice";
+import { setCompanyDetails, setCompanyImage } from "@/store/auth/companySlice";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
@@ -89,7 +86,6 @@ export default function AuthUI() {
             tokenExpireAt: UserInfo.token_expires_at,
           }),
         );
-        sessionStorage.setItem("is_new_login", "true");
         const companyData = res.company_detils || res.company_details;
         if (companyData) {
           dispatch(setCompanyDetails(companyData));
@@ -113,7 +109,7 @@ export default function AuthUI() {
         className="relative z-10 max-w-6xl w-full flex justify-center items-center"
       >
         {/* <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 rounded-3xl overflow-hidden backdrop-blur-xl bg-white/10 border border-white shadow-2xl"> */}
-        <div className="w-[45%] rounded-3xl overflow-hidden">
+        <div className="w-full md:w-[45%] rounded-3xl overflow-hidden">
           {/* <div className="w-full col-span-3">hii</div> */}
           <LoginForm
             email={email}
