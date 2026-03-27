@@ -15,24 +15,11 @@ import { useSelector } from "react-redux";
 const NAVIGATION_CONFIG = {
   COMMON: {
     EVENTS: {
-      title: "Events",
-      url: "event",
+      title: "Event Scanner",
+      url: "/event",
       icon: LayoutDashboard,
       isActive: true,
-      items: [
-        // {
-        //   title: "QR Scanner",
-        //   url: "/event",
-        // },
-        // {
-        //   title: "Event List",
-        //   url: "/event-list",
-        // },
-        // {
-        //   title: "Event Track List",
-        //   url: "/event-track",
-        // },
-      ],
+      items: [],
     },
     SETTINGS: {
       title: "Settings",
